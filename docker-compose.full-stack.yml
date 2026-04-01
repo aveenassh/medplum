@@ -19,7 +19,9 @@ services:
       - '-c'
       - 'shared_preload_libraries=pg_stat_statements,auto_explain'
     ports:
-      - '5432:5432'
+      - '5430:5432' # for other system existing on the host machine, we map to 5430 instead of 5432
+    networks:
+      - medplum-network
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U medplum']
       interval: 10s
@@ -31,7 +33,9 @@ services:
     restart: unless-stopped # for production usage, consider 'always'
     command: redis-server --requirepass medplum
     ports:
-      - '6379:6379'
+      - '6380:6379' # for other system existing on the host machine, we map to 6380 instead of 6379
+    networks:
+      - medplum-network
     healthcheck:
       test: ['CMD', 'redis-cli', '-a', 'medplum', 'ping']
       interval: 10s
@@ -49,6 +53,8 @@ services:
         condition: service_healthy
     ports:
       - '8103:8103'
+    networks:
+      - medplum-network
     command: ['env']
     environment:
       MEDPLUM_PORT: 8103
@@ -99,16 +105,19 @@ services:
   medplum-app:
     image: medplum/medplum-app:latest
     restart: unless-stopped
-    depends_on:
-      medplum-server:
-        condition: service_healthy
     ports:
       - '3000:3000'
+    networks:
+      - medplum-network
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000']
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000 || exit 1']
       interval: 10s
       timeout: 5s
       retries: 5
 
+networks:
+  medplum-network:
+      driver: bridge
+    
 volumes:
   medplum-postgres-data:
